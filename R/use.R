@@ -1,3 +1,47 @@
+
+
+.pkgenv <- new.env(parent = emptyenv())
+
+
+#' Use Module File - Cached
+#' @description
+#' A cached version of `use`. Only supports module file R scripts.
+#' Useful if module scripts take too long to parse, especially when there are nested modules.
+#' Returned cached modules are copy on modify, so altering elements of a module will not affect other copies else where.
+#' However, modifications to objects in module function enclosing environments will have a global impact across all
+#' copies of the cached module.
+#' @param module_file path to module R script file
+#' @param ... parameters passed to `use`
+#' @export
+#' @rdname use_cached
+use_cached <- function(module_file, ...) {
+  if (!(is.character(module_file) && length(module_file) == 1 && file.exists(module_file))) {
+    stop("invalid module file path")
+  }
+  mtime <- file.info(module_file)$mtime
+  cache_entry <- .pkgenv$cache[[module_file]]
+  if (!is.null(cache_entry) && cache_entry$mtime == mtime) {
+    module <- cache_entry$module
+  } else {
+    module <- use(module_file, ...)
+    cache <- .pkgenv$cache # must re-access cache after use()
+    cache_entry <- list(
+      module = module,
+      mtime = mtime
+    )
+    cache[[module_file]] <- cache_entry
+    assign('cache', cache, envir = .pkgenv)
+  }
+  return(module)
+}
+
+#' @rdname use_cached
+#' @export
+invalidate_cache <- function() {
+  assign('cache', NULL, envir = .pkgenv)
+}
+
+
 #' Use a module as dependency
 #'
 #' Use and/or register a module as dependency. The behaviour of use is similar
