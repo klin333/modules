@@ -7,9 +7,14 @@
 #' @description
 #' A cached version of `use`. Only supports module file R scripts.
 #' Useful if module scripts take too long to parse, especially when there are nested modules.
+#'
 #' Returned cached modules are copy on modify, so altering elements of a module will not affect other copies else where.
 #' However, modifications to objects in module function enclosing environments will have a global impact across all
 #' copies of the cached module.
+#'
+#' Cache invalidation is based on modified time of `module_file`.
+#' However, the modified time of nested modules are not checked.
+#' In such case, use `invalidate_cache` for manual cache invalidation.
 #' @param module_file path to module R script file
 #' @param ... parameters passed to `use`
 #' @export
