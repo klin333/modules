@@ -19,6 +19,9 @@
 #' @export
 #' @rdname use_cached
 use_cached <- function(module_file, ...) {
+  if (!fs::is_absolute_path(module_file)) {
+    module_file <- file.path(getwd(), module_file) # convert to absolute path for cache key
+  }
   if (!(is.character(module_file) && length(module_file) == 1 && file.exists(module_file))) {
     stop("invalid module file path")
   }
