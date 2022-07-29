@@ -6,12 +6,17 @@ func_a <- function() {
   print("func_a")
 }
 
-module_setting <- 1
+pkgenv <- new.env(parent = emptyenv())
+pkgenv$env_setting <- 1
+
+bare_setting <- 1
 
 set_module_setting <- function(setting) {
-  module_setting <<- setting
+  pkgenv$env_setting <- setting
+  bare_setting <<- setting
 }
 
 get_module_setting <- function() {
-  return(module_setting)
+  stopifnot(pkgenv$env_setting == bare_setting)
+  return(pkgenv$env_setting)
 }

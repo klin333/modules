@@ -12,7 +12,8 @@ ByteCompile: TRUE
 Depends:
     R (>= 3.2.0)
 Imports:
-    utils
+    utils,
+    rlang
 License: MIT + file LICENSE
 Encoding: UTF-8
 Suggests:

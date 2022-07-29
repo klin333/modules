@@ -9,8 +9,7 @@
 #' Useful if module scripts take too long to parse, especially when there are nested modules.
 #'
 #' Returned cached modules are copy on modify, so altering elements of a module will not affect other copies else where.
-#' However, modifications to objects in module function enclosing environments will have a global impact across all
-#' copies of the cached module.
+#' Module function enclosing environments are also recursively cloned to prevent global effects across cached modules.
 #'
 #' Cache invalidation is based on modified time of `module_file`.
 #' However, the modified time of nested modules are not checked.
@@ -27,6 +26,17 @@ use_cached <- function(module_file, ...) {
   cache_entry <- .pkgenv$cache[[module_file]]
   if (!is.null(cache_entry) && cache_entry$mtime == mtime) {
     module <- cache_entry$module
+    # module elements are copy on modify,
+    # but module environments need to be cloned to prevent cross talk
+    clone_env <- NULL
+    for (i in names(module)) {
+      if (is.function(module[[i]])) {
+        if (is.null(clone_env)) {
+          clone_env <- clone_env_recursive(environment(module[[i]]))
+        }
+        environment(module[[i]]) <- clone_env
+      }
+    }
   } else {
     module <- use(module_file, ...)
     cache <- .pkgenv$cache # must re-access cache after use()
@@ -39,6 +49,19 @@ use_cached <- function(module_file, ...) {
   }
   return(module)
 }
+
+
+clone_env_recursive <- function(env) {
+  clone_env <- rlang::env_clone(env)
+  for (v in ls(envir = clone_env, all.names = TRUE)) {
+    x <- get(v, envir = clone_env)
+    if (is.environment(x)) {
+      clone_env[[v]] <- clone_env_recursive(x)
+    }
+  }
+  clone_env
+}
+
 
 #' @rdname use_cached
 #' @export
