@@ -7,10 +7,10 @@ test_that("use cached", {
 
   mod_b$set_module_a_setting(2)
   expect_equal(mod_b$get_module_a_setting(), 2)
-  expect_equal(mod_a$get_module_setting(), 2)
+  expect_equal(mod_a$get_module_setting(), 1)
 
   mod_a$set_module_setting(3)
-  expect_equal(mod_b$get_module_a_setting(), 3)
+  expect_equal(mod_b$get_module_a_setting(), 2)
   expect_equal(mod_a$get_module_setting(), 3)
 
 
@@ -20,10 +20,10 @@ test_that("use cached", {
 
   mod_b$set_module_a_setting(2)
   expect_equal(mod_b$get_module_a_setting(), 2)
-  expect_equal(mod_a$get_module_setting(), 2)
+  expect_equal(mod_a$get_module_setting(), 1)
 
   mod_a$set_module_setting(3)
-  expect_equal(mod_b$get_module_a_setting(), 3)
+  expect_equal(mod_b$get_module_a_setting(), 2)
   expect_equal(mod_a$get_module_setting(), 3)
 
 })
