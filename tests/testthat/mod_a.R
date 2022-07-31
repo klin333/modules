@@ -20,3 +20,11 @@ get_module_setting <- function() {
   stopifnot(pkgenv$env_setting == bare_setting)
   return(pkgenv$env_setting)
 }
+
+make_func <- function(func) {
+  function(x) {
+    func(x)
+  }
+}
+
+func_mean <- make_func(mean)

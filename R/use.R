@@ -30,14 +30,23 @@ use_cached <- function(module_file, ...) {
   if (!is.null(cache_entry) && cache_entry$mtime == mtime) {
     module <- cache_entry$module
     # module elements are copy on modify,
-    # but module environments need to be cloned to prevent cross talk
-    clone_env <- NULL
+    # but module environments need to be cloned to prevent cross talk.
+    # functions within one module could have different enclosing environments.
+    clone_envs <- list()
     for (i in names(module)) {
       if (is.function(module[[i]])) {
-        if (is.null(clone_env)) {
-          clone_env <- clone_env_recursive(environment(module[[i]]))
+        enclosing_env <- environment(module[[i]])
+        env_id <- get_env_id(enclosing_env)
+        if (!(env_id %in% names(clone_envs))) {
+          clone_envs[[env_id]] <- clone_env_recursive(environment(module[[i]]))
         }
-        environment(module[[i]]) <- clone_env
+        environment(module[[i]]) <- clone_envs[[env_id]]
+      }
+    }
+    # change the parent of cloned environment to the cloned parent environment
+    for (i in names(module)) {
+      if (is.function(module[[i]])) {
+        environment(module[[i]]) <- replace_parent_env(environment(module[[i]]), clone_envs)
       }
     }
   } else {
@@ -63,6 +72,22 @@ clone_env_recursive <- function(env) {
     }
   }
   clone_env
+}
+
+
+# change the parent of cloned environment to the cloned parent environment
+replace_parent_env <- function(env, clone_envs) {
+  if (get_env_id(parent.env(env)) %in% names(clone_envs)) {
+    parent_clone <- clone_envs[[get_env_id(parent.env(env))]]
+    parent.env(env) <- replace_parent_env(parent_clone, clone_envs)
+  }
+  env
+}
+
+
+get_env_id <- function(env) {
+  stopifnot(is.environment(env))
+  sub('<environment: (.*)>', '\\1', capture.output(env)[1])
 }
 
 
