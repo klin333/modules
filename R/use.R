@@ -36,7 +36,7 @@ use_cached <- function(module_file, ...) {
     for (i in names(module)) {
       if (rlang::is_closure(module[[i]])) {
         enclosing_env <- environment(module[[i]])
-        env_id <- rlang::obj_address(enclosing_env)
+        env_id <- get_env_id(enclosing_env)
         if (!(env_id %in% names(clone_envs))) {
           clone_envs[[env_id]] <- clone_env_recursive(environment(module[[i]]))
         }
@@ -89,11 +89,18 @@ clone_env_recursive <- function(env, depth = 1) {
 
 # change the parent of cloned environment to the cloned parent environment
 replace_parent_env <- function(env, clone_envs) {
-  if (rlang::obj_address(parent.env(env)) %in% names(clone_envs)) {
-    parent_clone <- clone_envs[[rlang::obj_address(parent.env(env))]]
+  if (get_env_id(parent.env(env)) %in% names(clone_envs)) {
+    parent_clone <- clone_envs[[get_env_id(parent.env(env))]]
     parent.env(env) <- replace_parent_env(parent_clone, clone_envs)
   }
   env
+}
+
+
+get_env_id <- function(env) {
+  # when can safely assume rlang1.0+, can deprecate this in favour of rlang::obj_address
+  stopifnot(is.environment(env))
+  sub('<environment: (.*)>', '\\1', capture.output(env)[1])
 }
 
 

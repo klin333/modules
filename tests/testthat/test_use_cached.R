@@ -40,7 +40,7 @@ test_that("use cached", {
   expect_equal(mod_a$func_mean(10), 10)
   expect_equal(mod_a_cached$func_mean(10), 10)
 
-  expect_true(rlang::obj_address(environment(mod_a$make_func)) == rlang::obj_address(parent.env(environment(mod_a$func_mean))))
-  expect_true(rlang::obj_address(environment(mod_a_cached$make_func)) == rlang::obj_address(parent.env(environment(mod_a_cached$func_mean))))
+  expect_true(get_env_id(environment(mod_a$make_func)) == get_env_id(parent.env(environment(mod_a$func_mean))))
+  expect_true(get_env_id(environment(mod_a_cached$make_func)) == get_env_id(parent.env(environment(mod_a_cached$func_mean))))
 
 })
