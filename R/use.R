@@ -34,9 +34,9 @@ use_cached <- function(module_file, ...) {
     # functions within one module could have different enclosing environments.
     clone_envs <- list()
     for (i in names(module)) {
-      if (is.function(module[[i]])) {
+      if (rlang::is_closure(module[[i]])) {
         enclosing_env <- environment(module[[i]])
-        env_id <- get_env_id(enclosing_env)
+        env_id <- rlang::obj_address(enclosing_env)
         if (!(env_id %in% names(clone_envs))) {
           clone_envs[[env_id]] <- clone_env_recursive(environment(module[[i]]))
         }
@@ -63,31 +63,37 @@ use_cached <- function(module_file, ...) {
 }
 
 
-clone_env_recursive <- function(env) {
-  clone_env <- rlang::env_clone(env)
-  for (v in ls(envir = clone_env, all.names = TRUE)) {
-    x <- get(v, envir = clone_env)
-    if (is.environment(x)) {
-      clone_env[[v]] <- clone_env_recursive(x)
+clone_env_recursive <- function(env, depth = 1) {
+
+  MAX_RECURSE_DEPTH <- 100 # guard against weird infinite recursion
+
+  if (depth > MAX_RECURSE_DEPTH) {
+    warning("modules got into deep recursion, early stopping recursion")
+    clone_env <- env
+  } else if (any(unlist(lapply(rlang::search_envs(), identical, env)))) {
+    # if env is on search path, eg a package namespace, global env or base env etc, don't clone
+    clone_env <- env
+  } else {
+    clone_env <- rlang::env_clone(env)
+    for (v in ls(envir = clone_env, all.names = TRUE)) {
+      x <- get(v, envir = clone_env)
+      if (is.environment(x)) {
+        clone_env[[v]] <- clone_env_recursive(x, depth = depth + 1)
+      }
     }
   }
+
   clone_env
 }
 
 
 # change the parent of cloned environment to the cloned parent environment
 replace_parent_env <- function(env, clone_envs) {
-  if (get_env_id(parent.env(env)) %in% names(clone_envs)) {
-    parent_clone <- clone_envs[[get_env_id(parent.env(env))]]
+  if (rlang::obj_address(parent.env(env)) %in% names(clone_envs)) {
+    parent_clone <- clone_envs[[rlang::obj_address(parent.env(env))]]
     parent.env(env) <- replace_parent_env(parent_clone, clone_envs)
   }
   env
-}
-
-
-get_env_id <- function(env) {
-  stopifnot(is.environment(env))
-  sub('<environment: (.*)>', '\\1', capture.output(env)[1])
 }
 
 
