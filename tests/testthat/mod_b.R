@@ -1,4 +1,7 @@
 
+mod_a_uncached <- modules::use(testthat::test_path('mod_a.R'))
+f <- mod_a_uncached$func_a
+
 mod_a <- modules::use_cached(testthat::test_path('mod_a.R'))
 
 print("in mod b")
