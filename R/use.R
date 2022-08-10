@@ -69,53 +69,12 @@ use_cached <- function(module_file, ...) {
   if (!(is.character(module_file) && length(module_file) == 1 && file.exists(module_file))) {
     stop("invalid module file path")
   }
+
   mtime <- file.info(module_file)$mtime
   cache_entry <- .pkgenv$cache[[module_file]]
-  if (!is.null(cache_entry) && cache_entry$mtime == mtime) {
-    module <- cache_entry$module
-    # module elements are copy on modify,
-    # but module environments need to be cloned to prevent cross talk.
-    # functions within one module could have different enclosing environments.
-    clone_envs <- list()
-    for (i in names(module)) {
-      if (rlang::is_closure(module[[i]])) {
-        enclosing_env <- environment(module[[i]])
-        if (is_from_module(module, enclosing_env) && !in_search_envs(enclosing_env)) {
-          env_id <- get_env_id(enclosing_env)
-          if (!(env_id %in% names(clone_envs))) {
-            clone_envs[[env_id]] <- clone_env_recursive(enclosing_env)
-          }
-          environment(module[[i]]) <- clone_envs[[env_id]]
-        }
-      }
-    }
-    # change the parent of cloned environment to the cloned parent environment
-    for (i in names(module)) {
-      if (is.function(module[[i]])) {
-        environment(module[[i]]) <- replace_parent_env(environment(module[[i]]), clone_envs)
-      }
-    }
 
-    # change the enclosing environment of functions within cloned environments, to be the cloned environments
-    for (clone_env in clone_envs) {
-      for (i in ls(envir = clone_env)) {
-        x <- get(i, envir = clone_env)
-        if (rlang::is_closure(x)) {
-          enclosing_env <- environment(x)
-          if (is_from_module(module, enclosing_env) && !in_search_envs(enclosing_env)) {
-            env_id <- get_env_id(enclosing_env)
-            if (env_id %in% names(clone_envs)) {
-              environment(x) <- clone_envs[[env_id]]
-              clone_env[[i]] <- x
-            } else {
-              warning(sprintf("environment of %s is not fully right...", i))
-            }
-          }
-        }
-      }
-    }
-
-  } else {
+  # load module from file
+  if (is.null(cache_entry) || mtime > cache_entry$mtime) {
     module <- use(module_file, ...)
     cache <- .pkgenv$cache # must re-access cache after use()
     cache_entry <- list(
@@ -125,6 +84,51 @@ use_cached <- function(module_file, ...) {
     cache[[module_file]] <- cache_entry
     assign('cache', cache, envir = .pkgenv)
   }
+
+  # always clone environments such that original module is never changed
+  cache_entry <- .pkgenv$cache[[module_file]]
+  module <- cache_entry$module
+
+  clone_envs <- list()
+  for (i in names(module)) {
+    if (rlang::is_closure(module[[i]])) {
+      enclosing_env <- environment(module[[i]])
+      if (is_from_module(module, enclosing_env) && !in_search_envs(enclosing_env)) {
+        env_id <- get_env_id(enclosing_env)
+        if (!(env_id %in% names(clone_envs))) {
+          clone_envs[[env_id]] <- clone_env_recursive(enclosing_env)
+        }
+        environment(module[[i]]) <- clone_envs[[env_id]]
+      }
+    }
+  }
+
+  # change the parent of cloned environment to the cloned parent environment
+  for (i in names(module)) {
+    if (is.function(module[[i]])) {
+      environment(module[[i]]) <- replace_parent_env(environment(module[[i]]), clone_envs)
+    }
+  }
+
+  # change the enclosing environment of functions within cloned environments, to be the cloned environments
+  for (clone_env in clone_envs) {
+    for (i in ls(envir = clone_env)) {
+      x <- get(i, envir = clone_env)
+      if (rlang::is_closure(x)) {
+        enclosing_env <- environment(x)
+        if (is_from_module(module, enclosing_env) && !in_search_envs(enclosing_env)) {
+          env_id <- get_env_id(enclosing_env)
+          if (env_id %in% names(clone_envs)) {
+            environment(x) <- clone_envs[[env_id]]
+            clone_env[[i]] <- x
+          } else {
+            warning(sprintf("environment of %s is not fully right...", i))
+          }
+        }
+      }
+    }
+  }
+
   return(module)
 }
 
