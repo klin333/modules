@@ -82,7 +82,7 @@ use_cached <- function(module_file, ...) {
         enclosing_env <- environment(module[[i]])
         env_id <- get_env_id(enclosing_env)
         if (!(env_id %in% names(clone_envs))) {
-          clone_envs[[env_id]] <- clone_env_recursive(environment(module[[i]]))
+          clone_envs[[env_id]] <- clone_env_recursive(enclosing_env)
         }
         environment(module[[i]]) <- clone_envs[[env_id]]
       }
@@ -101,11 +101,11 @@ use_cached <- function(module_file, ...) {
         if (rlang::is_closure(x)) {
           enclosing_env <- environment(x)
           env_id <- get_env_id(enclosing_env)
-          if (env_id %in% names(clone_envs)) {
-            environment(x) <- clone_envs[[env_id]]
-            clone_env[[i]] <- x
-          } else {
-            if (!in_search_envs(enclosing_env)) {
+          if (!in_search_envs(enclosing_env)) {
+            if (env_id %in% names(clone_envs)) {
+              environment(x) <- clone_envs[[env_id]]
+              clone_env[[i]] <- x
+            } else {
               # too hard to handle properly
               warning(sprintf("environment of %s is not fully right...", i))
             }
