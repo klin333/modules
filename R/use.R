@@ -80,11 +80,13 @@ use_cached <- function(module_file, ...) {
     for (i in names(module)) {
       if (rlang::is_closure(module[[i]])) {
         enclosing_env <- environment(module[[i]])
-        env_id <- get_env_id(enclosing_env)
-        if (!(env_id %in% names(clone_envs))) {
-          clone_envs[[env_id]] <- clone_env_recursive(enclosing_env)
+        if (is_from_module(module, enclosing_env) && !in_search_envs(enclosing_env)) {
+          env_id <- get_env_id(enclosing_env)
+          if (!(env_id %in% names(clone_envs))) {
+            clone_envs[[env_id]] <- clone_env_recursive(enclosing_env)
+          }
+          environment(module[[i]]) <- clone_envs[[env_id]]
         }
-        environment(module[[i]]) <- clone_envs[[env_id]]
       }
     }
     # change the parent of cloned environment to the cloned parent environment
@@ -100,13 +102,12 @@ use_cached <- function(module_file, ...) {
         x <- get(i, envir = clone_env)
         if (rlang::is_closure(x)) {
           enclosing_env <- environment(x)
-          env_id <- get_env_id(enclosing_env)
-          if (!in_search_envs(enclosing_env)) {
+          if (is_from_module(module, enclosing_env) && !in_search_envs(enclosing_env)) {
+            env_id <- get_env_id(enclosing_env)
             if (env_id %in% names(clone_envs)) {
               environment(x) <- clone_envs[[env_id]]
               clone_env[[i]] <- x
             } else {
-              # too hard to handle properly
               warning(sprintf("environment of %s is not fully right...", i))
             }
           }
@@ -127,6 +128,9 @@ use_cached <- function(module_file, ...) {
   return(module)
 }
 
+is_from_module <- function(module, env) {
+  attr(module, 'topScopeId') %in% c(get_env_id(env), unlist(lapply(rlang::env_parents(env), get_env_id)))
+}
 
 in_search_envs <- function(env) {
   any(unlist(lapply(rlang::search_envs(), identical, env))) || rlang::is_namespace(env)
@@ -167,9 +171,7 @@ replace_parent_env <- function(env, clone_envs) {
 
 
 get_env_id <- function(env) {
-  # when can safely assume rlang1.0+, can deprecate this in favour of rlang::obj_address
-  stopifnot(is.environment(env))
-  sub('<environment: (.*)>', '\\1', capture.output(env)[1])
+  rlang::obj_address(env)
 }
 
 
