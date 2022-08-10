@@ -19,6 +19,50 @@
 #' @export
 #' @rdname use_cached
 use_cached <- function(module_file, ...) {
+
+  #  _____________                    ____________
+  # | module list |                  | encl env 1 |
+  # |             |                  |            |
+  # |   func_a ---|--> function ---->|            |
+  # |             |          ^       |            |
+  # |             |          |-------|-- func_a   |
+  # |             |                  |            |
+  # |   func_b ---|--> function ---->|            |
+  # |             |          ^       |            |
+  # |             |          |-------|-- func_b   |
+  # |             |                  |____________|
+  # |             |                         ^
+  # |             |                   ______|_____
+  # |             |                  | encl env 2 |
+  # |   func_c ---|--> function ---->|            |
+  # |             |          ^       |            |
+  # |             |          |-------|-- func_c   |
+  # |_____________|                  |____________|
+  #
+  # 1) modify functions in module list,
+  #    set their enclosing environment to a clone of original enclosing environment
+  # 2) change the parent of cloned environment to the cloned parent environment
+  # 3) change the enclosing environment of functions within cloned environments, to be the cloned environments
+  #  _____________                    _____________
+  # | module list |                  | clone env 1 |
+  # |             |                  |  (step 1)   |   (step 3)
+  # |   func_a ---|--> function ---->|             |<-------------+
+  # |             |                  |             |              |
+  # |             |                  |   func_a ---|--> function--+
+  # |             |                  |             |
+  # |   func_b ---|--> function ---->|             |<-------------+
+  # |             |                  |             |              |
+  # |             |                  |   func_b ---|--> function--+
+  # |             |                  |_____________|
+  # |             |                         ^ (step 2)
+  # |             |                   ______|______
+  # |             |                  | clone env 2 |
+  # |   func_c ---|--> function ---->|  (step 1)   |<-------------+
+  # |             |                  |             |              |
+  # |             |                  |   func_c ---|--> function--+
+  # |_____________|                  |_____________|
+
+
   if (!fs::is_absolute_path(module_file)) {
     module_file <- file.path(getwd(), module_file) # convert to absolute path for cache key
   }
@@ -49,6 +93,27 @@ use_cached <- function(module_file, ...) {
         environment(module[[i]]) <- replace_parent_env(environment(module[[i]]), clone_envs)
       }
     }
+
+    # change the enclosing environment of functions within cloned environments, to be the cloned environments
+    for (clone_env in clone_envs) {
+      for (i in ls(envir = clone_env)) {
+        x <- get(i, envir = clone_env)
+        if (rlang::is_closure(x)) {
+          enclosing_env <- environment(x)
+          env_id <- get_env_id(enclosing_env)
+          if (env_id %in% names(clone_envs)) {
+            environment(x) <- clone_envs[[env_id]]
+            clone_env[[i]] <- x
+          } else {
+            if (!in_search_envs(enclosing_env)) {
+              # too hard to handle properly
+              warning(sprintf("environment of %s is not fully right...", i))
+            }
+          }
+        }
+      }
+    }
+
   } else {
     module <- use(module_file, ...)
     cache <- .pkgenv$cache # must re-access cache after use()
@@ -63,6 +128,10 @@ use_cached <- function(module_file, ...) {
 }
 
 
+in_search_envs <- function(env) {
+  any(unlist(lapply(rlang::search_envs(), identical, env))) || rlang::is_namespace(env)
+}
+
 clone_env_recursive <- function(env, depth = 1) {
 
   MAX_RECURSE_DEPTH <- 100 # guard against weird infinite recursion
@@ -70,7 +139,7 @@ clone_env_recursive <- function(env, depth = 1) {
   if (depth > MAX_RECURSE_DEPTH) {
     warning("modules got into deep recursion, early stopping recursion")
     clone_env <- env
-  } else if (any(unlist(lapply(rlang::search_envs(), identical, env)))) {
+  } else if (in_search_envs(env)) {
     # if env is on search path, eg a package namespace, global env or base env etc, don't clone
     clone_env <- env
   } else {

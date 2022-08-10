@@ -21,6 +21,10 @@ get_module_setting <- function() {
   return(pkgenv$env_setting)
 }
 
+use_module_setting <- function() {
+  get_module_setting()
+}
+
 make_func <- function(func) {
   function(x) {
     func(x)

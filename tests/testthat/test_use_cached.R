@@ -4,7 +4,7 @@ test_that("use cached", {
   # check cached use doesn't get into infinite recursion
   invalidate_cache()
   mod_b <- use_cached(test_path('mod_b.R'))
-  expect_warning(mod_b <- use_cached(test_path('mod_b.R')), NA)
+  expect_warning(mod_b <- use_cached(test_path('mod_b.R'))) # too hard to handle properly...
 
   # check cached versions get used, and environments are separated
   modules::invalidate_cache()
@@ -42,5 +42,14 @@ test_that("use cached", {
 
   expect_true(get_env_id(environment(mod_a$make_func)) == get_env_id(parent.env(environment(mod_a$func_mean))))
   expect_true(get_env_id(environment(mod_a_cached$make_func)) == get_env_id(parent.env(environment(mod_a_cached$func_mean))))
+
+
+  # check
+  modules::invalidate_cache()
+  mod_a <- modules::use_cached(test_path('mod_a.R'))
+  mod_a <- modules::use_cached(test_path('mod_a.R'))
+
+  mod_a$set_module_setting(20)
+  expect_equal(mod_a$use_module_setting(), 20)
 
 })
