@@ -13,7 +13,7 @@ Depends:
     R (>= 3.2.0)
 Imports:
     utils,
-    rlang,
+    rlang (>= 1.0),
     fs
 License: MIT + file LICENSE
 Encoding: UTF-8

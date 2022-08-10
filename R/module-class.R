@@ -41,12 +41,13 @@ ModuleConst <- function(expr, topEncl, topenv) {
     attr(module, "expr") <- expr
     attr(module, "topEncl") <- topEncl
     attr(module, "topenv") <- topenv
+    attr(module, "topScopeId") <- get_env_id(moduleEnv)
     module
   }
 
-  module <- ModuleScope(parent = ModuleParent(topEncl), topenv = topenv)
-  module <- evalInModule(module, expr)
-  module <- exportExtract2List(module)
+  moduleEnv <- ModuleScope(parent = ModuleParent(topEncl), topenv = topenv)
+  moduleEnv <- evalInModule(moduleEnv, expr)
+  module <- exportExtract2List(moduleEnv)
   module <- class(module, "module")
   addMetaData(module)
 

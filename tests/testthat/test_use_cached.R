@@ -4,7 +4,7 @@ test_that("use cached", {
   # check cached use doesn't get into infinite recursion
   invalidate_cache()
   mod_b <- use_cached(test_path('mod_b.R'))
-  expect_warning(mod_b <- use_cached(test_path('mod_b.R'))) # too hard to handle properly...
+  expect_warning(mod_b <- use_cached(test_path('mod_b.R')), NA)
 
   # check cached versions get used, and environments are separated
   modules::invalidate_cache()
