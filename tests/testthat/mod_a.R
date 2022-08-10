@@ -6,6 +6,8 @@ func_a <- function() {
   print("func_a")
 }
 
+sd <- stats::sd
+
 pkgenv <- new.env(parent = emptyenv())
 pkgenv$env_setting <- 1
 
