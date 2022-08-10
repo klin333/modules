@@ -52,4 +52,19 @@ test_that("use cached", {
   mod_a$set_module_setting(20)
   expect_equal(mod_a$use_module_setting(), 20)
 
+
+  # check original copy never gets changed
+  modules::invalidate_cache()
+  mod_a <- modules::use_cached(test_path('mod_a.R'))
+  mod_a$set_module_setting(10)
+  mod_a1 <- modules::use_cached(test_path('mod_a.R'))
+  mod_a2 <- modules::use_cached(test_path('mod_a.R'))
+
+  expect_equal(mod_a1$use_module_setting(), 1)
+  expect_equal(mod_a2$use_module_setting(), 1)
+  mod_a1$set_module_setting(20)
+  expect_equal(mod_a$use_module_setting(), 10)
+  expect_equal(mod_a1$use_module_setting(), 20)
+  expect_equal(mod_a2$use_module_setting(), 1)
+
 })
