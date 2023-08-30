@@ -48,6 +48,10 @@
 #' })
 #' @export
 export <- function(..., where = parent.frame()) {
+  if (!exists(exportNameWithinModule(), envir = where)) {
+    # not in a module, likely called from user sourcing a script during debug session. do nothing.
+    return(invisible(NULL))
+  }
   exportWarnOnNonStandardCalls(match.call())
   objectsToExport <- deparseEllipsis(match.call(), "where")
   currentExports <- exportGetCurrentValue(where)
@@ -110,13 +114,13 @@ exportResolveFinalValue <- function(envir) {
 exportExtractElement <- function(where) {
   function(element, name) {
     name <- if (name == "") element else name
-    # we need to make sure that special names, 
-    # - infix operators: %*%, 
-    # - S3 methods for binary operators: ==.foo 
-    # - names with whitespaces 
+    # we need to make sure that special names,
+    # - infix operators: %*%,
+    # - S3 methods for binary operators: ==.foo
+    # - names with whitespaces
     # - single character punctuation: !
     # are parsed correctly
-    regexp <- "^%.*%$|^[[:alnum:][:space:]]+$|^[[:punct:]]{2,}.*$|^[[:punct:]]$" 
+    regexp <- "^%.*%$|^[[:alnum:][:space:]]+$|^[[:punct:]]{2,}.*$|^[[:punct:]]$"
     element <- if (grepl(regexp, element)) paste0("`", element, "`") else element # Exclude Linting
     object <- tryCatch(
       eval(parse(text = element), where, baseenv()),
